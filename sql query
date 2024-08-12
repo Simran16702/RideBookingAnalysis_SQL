@@ -1,0 +1,212 @@
+select * from trips;
+
+select * from trips_details4;
+
+select * from loc;
+
+select * from duration;
+
+select * from payment;
+
+--total trips
+
+select count(distinct tripid) total_trips from trips_details4;
+
+--To check for duplicate tripid
+
+select tripid,count(tripid) cnt from trips_details4
+group by tripid
+having count(tripid)>1;
+
+--Total drivers
+
+select count(distinct driverid) total_drivers from trips;
+
+--Total earnings
+
+select sum(fare) fare from trips;
+
+--Total Completed trips
+
+select count(distinct tripid) trips from trips;
+
+--Total searches
+
+select sum(searches) searches from trips_details4;
+
+--Total searches which got estimate
+
+select sum(searches_got_estimate) searches from trips_details4;
+
+--Total searches for quotes
+
+select sum(searches_for_quotes) searches_for_quotes from trips_details4;
+
+--Total searches which got quotes
+
+select sum(searches_got_quotes) searches_got_quotes from trips_details4;
+
+--Total driver cancelled
+
+select count(*) -sum(driver_not_cancelled)driver_cancelled from trips_details4;
+
+--Total otp entered
+
+select sum(otp_entered) otp_entered from trips_details4;
+
+--Total end ride
+
+select sum(end_ride) end_rides from trips_details4;
+
+--Average distance per trip
+
+select avg(distance)avg_dist from trips;
+
+--Avg fare per trip
+
+select avg(fare)avg_fare from trips;
+
+--Distance travelled
+
+select sum(distance) dist_travelled from trips;
+
+--Which is the most used payment method (apply joins)
+
+select faremethod, count(distinct tripid) cnt from trips
+group by faremethod
+order by count(distinct tripid) desc;
+
+select a.method from payment a inner join
+
+(select top 1 faremethod,count(distinct tripid) cnt from trips
+group by faremethod
+order by count(distinct tripid) desc ) b
+on a.id=b.faremethod
+;
+
+--Highest payment was made through which instrument
+
+select a.method from payment a inner join
+
+(select top 1 * from trips
+order by fare desc )b
+on a.id=b.faremethod;
+
+select a.method from payment a inner join
+
+(select top 1 faremethod,sum(fare) fare from trips
+group by faremethod
+order by sum(fare) desc ) b
+on a.id=b.faremethod
+;
+
+--Which two locations had the most trips
+
+select top 2 loc_from,loc_to,count(distinct tripid) from trips
+group by loc_from,loc_to
+order by count(distinct tripid) desc;
+
+select * from
+(select *,dense_rank() over(order by trip desc) rnk
+from
+(select loc_from,loc_to,count(distinct tripid) trip from trips
+group by loc_from,loc_to
+)a)b
+where rnk=1;
+
+--Top 5 earning drivers
+
+select * from
+(select *
+,dense_rank() over(order by fare desc) rnk
+from
+(select driverid,sum(fare) fare from trips
+group by driverid)b)c
+where rnk<6
+;
+
+--Which duration had more trips
+
+select * from
+(select *,rank() over(order by cnt desc) rnk from
+(select duration,count(distinct tripid) cnt from trips
+group by duration)b)c
+where rnk=1;
+
+--Which driver, customer pair had more orders
+
+select * from
+(select *,rank() over(order by cnt desc) rnk from
+(select driverid,custid,count(distinct tripid) cnt from trips
+group by driverid,custid)c)d
+where rnk=1;
+
+--search to estimate rate(in percentage)
+
+select sum(searches_got_estimate)*100.0/sum(searches) from trips_details4;
+
+--Estimate to search for quote rates
+
+select sum(searches_for_quotes)*100.0/sum (searches) from trips_details4;
+
+--quote acceptance rate
+
+select sum(searches_got_quotes)*100.0/sum (searches) from trips_details4;
+
+--Which area got highest trips in which duration/
+--Which location got the highest number of trips in each duration present
+select * from
+(select *,rank() over(partition by duration order by cnt desc) rnk from
+(select duration,loc_from,count(distinct tripid) cnt from trips
+group by duration,loc_from)a)c
+where rnk=1;
+
+--Which duration got the highest number of trips in each of the location present
+select * from
+(select *,rank() over(partition by loc_from order by cnt desc) rnk from
+(select duration,loc_from,count(distinct tripid) cnt from trips
+group by duration,loc_from)a)c
+where rnk=1;
+
+--Which area got the highest fares, cancellation,trips
+select loc_from,sum(fare) as far_e from trips
+group by loc_from
+order by far_e desc;
+-- --------------OR------------------------
+select * from
+(select *, rank() over (order by fare desc) rnk
+from
+(select loc_from,sum(fare) as fare from trips
+group by loc_from)b)c
+where rnk=1;
+
+--aboveQ (customer cancellation)
+select * from
+(select *, rank() over (order by can desc) rnk
+from
+(select loc_from,count(*) - sum(driver_not_cancelled) can
+from trips_details4
+group by loc_from)b)c
+where rnk=1;
+
+--Cancelllation location-wise
+select * from
+(select *, rank() over (order by can desc) rnk
+from
+( select loc_from,count(*)-sum(customer_not_cancelled) can
+from trips_details4
+group by loc_from)b)c
+where rnk=1;
+--fares
+select* from(select*,rank() over(order by fare desc) rnk
+from
+( select duration,sum(fare)fare from trips
+group by duration)b)c
+where rnk=1;
+
+--Which duration got highest trips and fares
+select* from(select*,rank() over(order by fare desc) rnk
+from
+( select duration,count(distinct tripid)fare from trips
+group by duration)b)c
+where rnk=1;
